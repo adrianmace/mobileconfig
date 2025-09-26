@@ -6,11 +6,11 @@ type DnsProvider = "quad9" | "cloudflare" | "custom";
 type DnsProtocol = "HTTPS" | "TLS";
 
 interface CustomDnsConfig {
+  name: string;
   prohibitDisablement: boolean;
   allowFailover: boolean;
   dnsProtocol: DnsProtocol;
-  payloadCertificateUUID: string;
-  serverAddresses: string;
+  serverAddresses: string[];
   serverName: string;
   serverURL: string;
 }
@@ -18,17 +18,17 @@ interface CustomDnsConfig {
 export default function Home() {
   const [provider, setProvider] = useState<DnsProvider>("quad9");
   const [customConfig, setCustomConfig] = useState<CustomDnsConfig>({
+    name: "",
     prohibitDisablement: false,
     allowFailover: false,
     dnsProtocol: "HTTPS",
-    payloadCertificateUUID: "",
-    serverAddresses: "",
+    serverAddresses: [""],
     serverName: "",
     serverURL: "",
   });
 
   const handleCustomConfigChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.target;
     const isCheckbox = type === "checkbox";
@@ -36,6 +36,31 @@ export default function Home() {
     setCustomConfig((prev) => ({
       ...prev,
       [name]: isCheckbox ? checked : value,
+    }));
+  };
+
+  const handleServerAddressChange = (index: number, value: string) => {
+    const newAddresses = [...customConfig.serverAddresses];
+    newAddresses[index] = value;
+    setCustomConfig((prev) => ({
+      ...prev,
+      serverAddresses: newAddresses,
+    }));
+  };
+
+  const addServerAddress = () => {
+    setCustomConfig((prev) => ({
+      ...prev,
+      serverAddresses: [...prev.serverAddresses, ""],
+    }));
+  };
+
+  const removeServerAddress = (index: number) => {
+    const newAddresses = [...customConfig.serverAddresses];
+    newAddresses.splice(index, 1);
+    setCustomConfig((prev) => ({
+      ...prev,
+      serverAddresses: newAddresses,
     }));
   };
 
@@ -85,6 +110,24 @@ export default function Home() {
       {provider === "custom" && (
         <form className="w-full max-w-lg bg-white p-8 rounded-lg shadow-md">
           <div className="flex flex-wrap -mx-3 mb-4">
+            <div className="w-full px-3">
+              <label
+                className="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2"
+                htmlFor="name"
+              >
+                Name
+              </label>
+              <input
+                className="appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
+                id="name"
+                name="name"
+                type="text"
+                placeholder="My Custom DNS"
+                value={customConfig.name}
+                onChange={handleCustomConfigChange}
+              />
+            </div>
+
             <div className="w-full px-3">
               <label
                 className="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2"
@@ -145,44 +188,38 @@ export default function Home() {
             )}
 
             <div className="w-full px-3">
-              <label
-                className="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2"
-                htmlFor="serverAddresses"
-              >
+              <label className="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2">
                 Server Addresses (ServerAddresses)
               </label>
-              <textarea
-                className="appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
-                id="serverAddresses"
-                name="serverAddresses"
-                placeholder="1.1.1.1, 8.8.8.8, 2001:4860:4860::8888"
-                value={customConfig.serverAddresses}
-                onChange={handleCustomConfigChange}
-              />
-              <p className="text-gray-600 text-xs italic">
-                Comma-separated list of IP addresses.
-              </p>
-            </div>
-
-            <div className="w-full px-3">
-              <label
-                className="block uppercase tracking-wide text-gray-700 text-xs font-bold mb-2"
-                htmlFor="payloadCertificateUUID"
+              {customConfig.serverAddresses.map((address, index) => (
+                <div key={index} className="flex items-center mb-2">
+                  <input
+                    className="appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
+                    type="text"
+                    placeholder="8.8.8.8"
+                    value={address}
+                    onChange={(e) => handleServerAddressChange(index, e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeServerAddress(index)}
+                    className="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-2 rounded ml-2"
+                    disabled={customConfig.serverAddresses.length === 1}
+                  >
+                    -
+                  </button>
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addServerAddress}
+                className="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded"
               >
-                Payload Certificate UUID (PayloadCertificateUUID)
-              </label>
-              <input
-                className="appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 mb-3 leading-tight focus:outline-none focus:bg-white"
-                id="payloadCertificateUUID"
-                name="payloadCertificateUUID"
-                type="text"
-                placeholder="XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
-                value={customConfig.payloadCertificateUUID}
-                onChange={handleCustomConfigChange}
-              />
+                +
+              </button>
             </div>
 
-            <div className="w-full px-3 flex items-center mb-4">
+            <div className="w-full px-3 flex items-center mb-4 mt-4">
               <input
                 className="mr-2 leading-tight"
                 type="checkbox"
@@ -215,7 +252,6 @@ export default function Home() {
                 Prohibit Disablement (ProhibitDisablement)
               </label>
             </div>
-
           </div>
         </form>
       )}
@@ -230,27 +266,34 @@ export default function Home() {
     </main>
   );
 
-  function handleSubmit() {
+  async function handleSubmit() {
     let config: any;
-    const displayName = "mobileconfig";
+    let name: string;
+    let protocol: DnsProtocol;
 
     switch (provider) {
       case "quad9":
+        name = "Quad9";
+        protocol = "HTTPS";
         config = {
-          DNSProtocol: "HTTPS",
+          DNSProtocol: protocol,
           ServerURL: "https://dns11.quad9.net/dns-query",
           ServerAddresses: ["9.9.9.9", "149.112.112.112", "2620:fe::fe", "2620:fe::9"],
         };
         break;
       case "cloudflare":
+        name = "Cloudflare";
+        protocol = "HTTPS";
         config = {
-          DNSProtocol: "HTTPS",
+          DNSProtocol: protocol,
           ServerURL: "https://security.cloudflare-dns.com/dns-query",
           ServerAddresses: ["1.1.1.2", "1.0.0.2", "2606:4700:4700::1112", "2606:4700:4700::1002"],
         };
         break;
       case "custom":
-        const addresses = customConfig.serverAddresses.split(",").map((a) => a.trim()).filter(Boolean);
+        name = customConfig.name || "Custom";
+        protocol = customConfig.dnsProtocol;
+        const addresses = customConfig.serverAddresses.map((a) => a.trim()).filter(Boolean);
         const ipv4Regex = /^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$/;
         const ipv6Regex = /(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))/;
 
@@ -269,19 +312,45 @@ export default function Home() {
         break;
     }
 
-    const mobileConfig = generateMobileConfig(config, displayName);
-    downloadMobileConfig(mobileConfig, `${displayName}.mobileconfig`);
+    const mobileConfig = await generateMobileConfig(config, name, protocol);
+    downloadMobileConfig(mobileConfig, `${name.toLowerCase().replace(/\s/g, '-')}.mobileconfig`);
   }
 }
 
-function generateMobileConfig(dnsSettings: any, displayName: string): string {
-  const payloadUUID = crypto.randomUUID();
+async function generateUUID(name: string) {
+  const namespace = "91937497-7597-4598-8454-6019558546E6";
+  const encoder = new TextEncoder();
+  const data = encoder.encode(namespace + name);
+  const hash = await crypto.subtle.digest('SHA-1', data);
+  const bytes = Array.from(new Uint8Array(hash));
+
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+
+  const hexBytes = bytes.map(b => b.toString(16).padStart(2, '0'));
+
+  return [
+    hexBytes.slice(0, 4).join(''),
+    hexBytes.slice(4, 6).join(''),
+    hexBytes.slice(6, 8).join(''),
+    hexBytes.slice(8, 10).join(''),
+    hexBytes.slice(10, 16).join(''),
+  ].join('-').toUpperCase();
+}
+
+async function generateMobileConfig(dnsSettings: any, name: string, protocol: DnsProtocol): Promise<string> {
+  const profileUUID = await generateUUID(name);
+  const payloadUUID = await generateUUID(name + "-payload");
+
   const payloadIdentifier = `com.apple.dnsSettings.managed.${payloadUUID}`;
-  const profileUUID = crypto.randomUUID();
   const profileIdentifier = `com.example.mobileconfig.${profileUUID}`;
+
+  const payloadDisplayName = `${protocol === 'HTTPS' ? 'DoH' : 'DoT'} via ${name}`;
+  const payloadDescription = `Configures your device to use ${name} via ${protocol === 'HTTPS' ? 'DoH' : 'DoT'}.`;
 
   let dnsSettingsDict = Object.entries(dnsSettings)
     .map(([key, value]) => {
+      if (key === 'name') return '';
       if (key === 'ServerAddresses' && Array.isArray(value)) {
         return `<key>${key}</key><array>${value.map(v => `<string>${v}</string>`).join('')}</array>`;
       }
@@ -308,7 +377,7 @@ function generateMobileConfig(dnsSettings: any, displayName: string): string {
                 ${dnsSettingsDict}
             </dict>
             <key>PayloadDisplayName</key>
-            <string>DNS Settings</string>
+            <string>${payloadDisplayName}</string>
             <key>PayloadIdentifier</key>
             <string>${payloadIdentifier}</string>
             <key>PayloadType</key>
@@ -320,7 +389,9 @@ function generateMobileConfig(dnsSettings: any, displayName: string): string {
         </dict>
     </array>
     <key>PayloadDisplayName</key>
-    <string>${displayName}</string>
+    <string>${payloadDisplayName}</string>
+    <key>PayloadDescription</key>
+    <string>${payloadDescription}</string>
     <key>PayloadIdentifier</key>
     <string>${profileIdentifier}</string>
     <key>PayloadType</key>
