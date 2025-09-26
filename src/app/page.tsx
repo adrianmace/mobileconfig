@@ -348,9 +348,6 @@ async function generateMobileConfig(dnsSettings: DnsConfig, provider: DnsProvide
   const payloadDescription = `Configures your device to use ${name} via ${DNSProtocol === 'HTTPS' ? 'DoH' : 'DoT'}.`;
 
   const finalDnsSettings: any = { ...dnsSettings, ProhibitDisablement: false };
-  if (provider === 'custom') {
-    finalDnsSettings.PayloadCertificateUUID = certUUID;
-  }
 
   let dnsSettingsDict = Object.entries(finalDnsSettings)
     .map(([key, value]) => {
