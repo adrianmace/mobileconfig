@@ -7,7 +7,6 @@ type DnsProtocol = "HTTPS" | "TLS";
 
 interface DnsConfig {
   name: string;
-  AllowFailover: boolean;
   DNSProtocol: DnsProtocol;
   ServerAddresses: string[];
   ServerName: string;
@@ -16,16 +15,14 @@ interface DnsConfig {
 
 const quad9Config: DnsConfig = {
   name: "Quad9",
-  AllowFailover: false,
   DNSProtocol: "HTTPS",
-  ServerURL: "https://dns11.quad9.net/dns-query",
+  ServerURL: "https://dns.quad9.net/dns-query",
   ServerAddresses: ["9.9.9.9", "149.112.112.112", "2620:fe::fe", "2620:fe::9"],
   ServerName: "",
 };
 
 const cloudflareConfig: DnsConfig = {
   name: "Cloudflare",
-  AllowFailover: false,
   DNSProtocol: "HTTPS",
   ServerURL: "https://security.cloudflare-dns.com/dns-query",
   ServerAddresses: ["1.1.1.2", "1.0.0.2", "2606:4700:4700::1112", "2606:4700:4700::1002"],
@@ -36,9 +33,8 @@ export default function Home() {
   const [provider, setProvider] = useState<DnsProvider>("quad9");
   const [customConfig, setCustomConfig] = useState<DnsConfig>({
     name: "",
-    AllowFailover: false,
     DNSProtocol: "HTTPS",
-    ServerAddresses: [""],
+    ServerAddresses: ["", "", "", ""],
     ServerName: "",
     ServerURL: "",
   });
@@ -234,7 +230,7 @@ export default function Home() {
                 <input
                   className="appearance-none block w-full bg-gray-200 text-gray-700 border rounded py-3 px-4 leading-tight focus:outline-none focus:bg-white"
                   type="text"
-                  placeholder="2001:db8::1"
+                  placeholder={index < 2 ? "203.0.113.1" : "2001:db8::1"}
                   value={address}
                   onChange={(e) => handleServerAddressChange(index, e.target.value)}
                   readOnly={!isCustom}
@@ -262,23 +258,6 @@ export default function Home() {
             )}
           </div>
 
-          <div className="w-full px-3 flex items-center mb-4 mt-4">
-            <input
-              className="mr-2 leading-tight"
-              type="checkbox"
-              id="AllowFailover"
-              name="AllowFailover"
-              checked={displayedConfig.AllowFailover}
-              onChange={handleCustomConfigChange}
-              disabled={!isCustom}
-            />
-            <label
-              className="text-sm"
-              htmlFor="AllowFailover"
-            >
-              Allow Failover to System DNS (AllowFailover)
-            </label>
-          </div>
         </div>
       </form>
 
